@@ -4,17 +4,17 @@ import 'config/theme.dart';
 import 'config/router.dart';
 import 'presentation/providers/theme_provider.dart';
 
-class MeldenApp extends ConsumerWidget {
-  const MeldenApp({super.key});
+class MeldinApp extends ConsumerWidget {
+  const MeldinApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
 
     return MaterialApp.router(
-      title: 'Melden',
-      theme: MeldenTheme.light(),
-      darkTheme: MeldenTheme.dark(),
+      title: 'Meldin',
+      theme: MeldinTheme.light(),
+      darkTheme: MeldinTheme.dark(),
       themeMode: themeMode,
       routerConfig: router,
       debugShowCheckedModeBanner: false,

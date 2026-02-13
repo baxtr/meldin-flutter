@@ -1,4 +1,4 @@
-package com.melden.melden
+package com.meldin.meldin
 
 import io.flutter.embedding.android.FlutterActivity
 

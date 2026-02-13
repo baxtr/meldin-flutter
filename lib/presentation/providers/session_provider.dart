@@ -43,12 +43,12 @@ class SessionNotifier extends StateNotifier<SessionState> {
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
     final cid = state.conversationId;
-    final savedName = prefs.getString('melden_user_$cid') ?? '';
-    final savedJoined = prefs.getBool('melden_joined_$cid') ?? false;
-    var savedUserId = prefs.getString('melden_userId_$cid');
+    final savedName = prefs.getString('meldin_user_$cid') ?? '';
+    final savedJoined = prefs.getBool('meldin_joined_$cid') ?? false;
+    var savedUserId = prefs.getString('meldin_userId_$cid');
     if (savedUserId == null) {
       savedUserId = const Uuid().v4();
-      await prefs.setString('melden_userId_$cid', savedUserId);
+      await prefs.setString('meldin_userId_$cid', savedUserId);
     }
     state = state.copyWith(
       userId: savedUserId,
@@ -60,17 +60,17 @@ class SessionNotifier extends StateNotifier<SessionState> {
   Future<void> join(String name) async {
     final prefs = await SharedPreferences.getInstance();
     final cid = state.conversationId;
-    await prefs.setString('melden_user_$cid', name);
-    await prefs.setBool('melden_joined_$cid', true);
+    await prefs.setString('meldin_user_$cid', name);
+    await prefs.setBool('meldin_joined_$cid', true);
     state = state.copyWith(userName: name, hasJoined: true);
   }
 
   Future<void> clearSession() async {
     final prefs = await SharedPreferences.getInstance();
     final cid = state.conversationId;
-    await prefs.remove('melden_user_$cid');
-    await prefs.remove('melden_joined_$cid');
-    await prefs.remove('melden_userId_$cid');
+    await prefs.remove('meldin_user_$cid');
+    await prefs.remove('meldin_joined_$cid');
+    await prefs.remove('meldin_userId_$cid');
     state = SessionState(conversationId: cid, userId: const Uuid().v4());
   }
 }

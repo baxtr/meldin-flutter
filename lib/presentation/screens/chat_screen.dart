@@ -97,14 +97,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ref.read(participantsProvider(widget.conversationId));
 
     final content = formatConversationForDownload(
-      title: 'Melden Conversation',
+      title: 'Meldin Conversation',
       messages: messages,
       participants: participants,
     );
 
     final dir = await getTemporaryDirectory();
     final file = File(
-        '${dir.path}/melden-${widget.conversationId.substring(0, 8)}.txt');
+        '${dir.path}/meldin-${widget.conversationId.substring(0, 8)}.txt');
     await file.writeAsString(content);
 
     await Share.shareXFiles([XFile(file.path)]);
@@ -267,7 +267,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Melden',
+          'Meldin',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: theme.colorScheme.primary,

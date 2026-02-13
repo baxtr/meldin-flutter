@@ -17,7 +17,7 @@ class ConversationListScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Melden',
+          'Meldin',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [

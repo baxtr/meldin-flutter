@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 
-class MeldenTheme {
-  static const Color meldenBlue = Color(0xFF3B82F6);
+class MeldinTheme {
+  static const Color meldinBlue = Color(0xFF3B82F6);
 
   static ThemeData light() => ThemeData(
         useMaterial3: true,
         brightness: Brightness.light,
-        colorSchemeSeed: meldenBlue,
+        colorSchemeSeed: meldinBlue,
         scaffoldBackgroundColor: const Color(0xFFF9FAFB),
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.white,
@@ -31,14 +31,14 @@ class MeldenTheme {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: meldenBlue, width: 2),
+            borderSide: const BorderSide(color: meldinBlue, width: 2),
           ),
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: meldenBlue,
+            backgroundColor: meldinBlue,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
             shape: RoundedRectangleBorder(
@@ -51,7 +51,7 @@ class MeldenTheme {
   static ThemeData dark() => ThemeData(
         useMaterial3: true,
         brightness: Brightness.dark,
-        colorSchemeSeed: meldenBlue,
+        colorSchemeSeed: meldinBlue,
         scaffoldBackgroundColor: const Color(0xFF111827),
         appBarTheme: const AppBarTheme(
           backgroundColor: Color(0xFF1F2937),
@@ -76,14 +76,14 @@ class MeldenTheme {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: meldenBlue, width: 2),
+            borderSide: const BorderSide(color: meldinBlue, width: 2),
           ),
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: meldenBlue,
+            backgroundColor: meldinBlue,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
             shape: RoundedRectangleBorder(

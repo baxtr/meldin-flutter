@@ -113,7 +113,7 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Melden',
+                          'Meldin',
                           style: theme.textTheme.headlineMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                             color: theme.colorScheme.primary,

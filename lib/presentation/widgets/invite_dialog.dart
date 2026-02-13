@@ -66,7 +66,7 @@ class InviteDialog extends StatelessWidget {
         ),
         ElevatedButton.icon(
           onPressed: () {
-            Share.share('Join my Melden conversation: $_inviteUrl');
+            Share.share('Join my Meldin conversation: $_inviteUrl');
           },
           icon: const Icon(Icons.share, size: 18),
           label: const Text('Share'),
