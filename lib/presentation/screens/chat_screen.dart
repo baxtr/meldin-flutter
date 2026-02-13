@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
@@ -35,10 +36,12 @@ class ChatScreen extends ConsumerStatefulWidget {
 
 class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _scrollController = ScrollController();
-  bool _isNudging = false;
+  final _inputKey = GlobalKey<ChatInputWidgetState>();
   String? _meetingTopic;
   bool _showScrollToBottom = false;
   int _unreadCount = 0;
+  final Set<String> _bookmarkedIds = {};
+  bool _showBookmarks = false;
 
   @override
   void initState() {
@@ -94,23 +97,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     wsService.send(WsLeave(participantId));
   }
 
-  Future<void> _handleNudge() async {
-    setState(() => _isNudging = true);
-    try {
-      await ref
-          .read(conversationRepoProvider)
-          .nudge(widget.conversationId);
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to nudge conversation')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isNudging = false);
-    }
-  }
-
   Future<void> _handleSummarize() async {
     if (!mounted) return;
     showDialog(
@@ -159,14 +145,165 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               ref
                   .read(sessionProvider(widget.conversationId).notifier)
                   .clearSession();
-              final newId = const Uuid().v4();
-              context.go('/join/$newId');
+              context.go('/');
             },
             child: const Text('New Chat'),
           ),
         ],
       ),
     );
+  }
+
+  void _toggleBookmark(String messageId) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      if (_bookmarkedIds.contains(messageId)) {
+        _bookmarkedIds.remove(messageId);
+      } else {
+        _bookmarkedIds.add(messageId);
+      }
+    });
+  }
+
+  void _showBookmarksSheet() {
+    final messages = ref.read(messagesProvider(widget.conversationId));
+    final bookmarked =
+        messages.where((m) => _bookmarkedIds.contains(m.id)).toList();
+    final session = ref.read(sessionProvider(widget.conversationId));
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (ctx) {
+        final theme = Theme.of(ctx);
+        return DraggableScrollableSheet(
+          initialChildSize: 0.7,
+          maxChildSize: 0.95,
+          minChildSize: 0.3,
+          expand: false,
+          builder: (context, scrollController) {
+            return Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.onSurface
+                            .withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Icon(Icons.bookmark_rounded,
+                          color: Colors.amber.shade600, size: 24),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Bookmarks (${bookmarked.length})',
+                          style: theme.textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: bookmarked.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.bookmark_border_rounded,
+                                  size: 48,
+                                  color: theme.colorScheme.onSurface
+                                      .withValues(alpha: 0.2),
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'No bookmarks yet',
+                                  style: TextStyle(
+                                    color: theme.colorScheme.onSurface
+                                        .withValues(alpha: 0.4),
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Long-press any message to bookmark it',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: theme.colorScheme.onSurface
+                                        .withValues(alpha: 0.3),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            controller: scrollController,
+                            itemCount: bookmarked.length,
+                            itemBuilder: (context, index) {
+                              final msg = bookmarked[index];
+                              return ChatMessageWidget(
+                                message: msg,
+                                isOwnMessage:
+                                    msg.senderId == session.userId,
+                                isBookmarked: true,
+                                onToggleBookmark: (id) {
+                                  _toggleBookmark(id);
+                                  Navigator.pop(context);
+                                },
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // --- Quick action prompts ---
+  static const _quickActions = [
+    _QuickAction(Icons.forum_outlined, 'Debate this', 'Let\'s have a structured debate about this. Each of you take a different position and argue your case.'),
+    _QuickAction(Icons.lightbulb_outline, 'Brainstorm', 'Let\'s brainstorm creative ideas. Think outside the box and build on each other\'s suggestions.'),
+    _QuickAction(Icons.compare_arrows, 'Compare', 'Compare and contrast the different approaches or perspectives discussed so far. What are the trade-offs?'),
+    _QuickAction(Icons.psychology_outlined, 'Challenge', 'Challenge the assumptions being made. What are we getting wrong? Play devil\'s advocate.'),
+    _QuickAction(Icons.school_outlined, 'Explain simply', 'Explain this in simple terms that anyone could understand. Use analogies and examples.'),
+    _QuickAction(Icons.groups_outlined, 'Everyone reply', 'I\'d like to hear from each of you. Everyone please share your perspective.'),
+    _QuickAction(Icons.checklist, 'Action items', 'Summarize the key takeaways and create a list of actionable next steps from this discussion.'),
+    _QuickAction(Icons.trending_up, 'Go deeper', 'Let\'s go deeper on this topic. What are the second-order effects and implications we haven\'t explored?'),
+  ];
+
+  void _sendQuickAction(String text) {
+    final session = ref.read(sessionProvider(widget.conversationId));
+    final wsService = ref.read(wsServiceProvider(widget.conversationId));
+    final message = Message(
+      id: const Uuid().v4(),
+      content: text,
+      senderId: session.userId,
+      senderName: session.userName,
+      senderType: 'human',
+      timestamp: DateTime.now().millisecondsSinceEpoch,
+      conversationId: widget.conversationId,
+    );
+    HapticFeedback.lightImpact();
+    wsService.send(WsMessageChat(message));
   }
 
   // --- Message grouping ---
@@ -295,10 +432,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ref.read(themeModeProvider.notifier).toggle(),
       isDarkMode: isDark,
       messagesCount: messages.length,
-      onNudge: _handleNudge,
-      isNudging: _isNudging,
       onRemoveParticipant: _handleRemoveParticipant,
       hasAgents: hasAgents,
+      bookmarkCount: _bookmarkedIds.length,
+      onShowBookmarks: _showBookmarksSheet,
+      onChatHistory: () => context.push('/history'),
     );
 
     Widget chatArea = Column(
@@ -371,6 +509,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                 isOwnMessage:
                                     msg.senderId == session.userId,
                                 showHeader: showHeader,
+                                isBookmarked:
+                                    _bookmarkedIds.contains(msg.id),
+                                onToggleBookmark: _toggleBookmark,
                               ),
                             ],
                           );
@@ -445,13 +586,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ],
           ),
         ),
+        // Quick Actions Bar
+        if (hasAgents && messages.isNotEmpty)
+          _buildQuickActionsBar(theme, isDark),
         // Input
         ChatInputWidget(
+          key: _inputKey,
           wsService: wsService,
           conversationId: widget.conversationId,
           userId: session.userId,
           userName: session.userName,
           isConnected: isConnected,
+          participants: participants,
         ),
       ],
     );
@@ -500,6 +646,69 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               ],
             )
           : chatArea,
+    );
+  }
+
+  Widget _buildQuickActionsBar(ThemeData theme, bool isDark) {
+    return Container(
+      height: 44,
+      decoration: BoxDecoration(
+        color: isDark
+            ? const Color(0xFF1A1D27)
+            : const Color(0xFFFAFAFB),
+        border: Border(
+          top: BorderSide(
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.06),
+          ),
+        ),
+      ),
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        itemCount: _quickActions.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 6),
+        itemBuilder: (context, index) {
+          final action = _quickActions[index];
+          return Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => _sendQuickAction(action.prompt),
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: theme.colorScheme.onSurface
+                        .withValues(alpha: 0.1),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      action.icon,
+                      size: 14,
+                      color: theme.colorScheme.primary,
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      action.label,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: theme.colorScheme.onSurface
+                            .withValues(alpha: 0.65),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -568,7 +777,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       useSafeArea: true,
       builder: (_) => AgentManagerDialog(
         onAddAgent: _handleAddAgent,
-        onSetTopic: (topic) => setState(() => _meetingTopic = topic),
+        onSetTopic: (topic) {
+          setState(() => _meetingTopic = topic);
+          // Update conversation title on the server
+          ref.read(conversationRepoProvider).updateTitle(
+                widget.conversationId,
+                topic,
+              );
+        },
+        initialTopic: _meetingTopic,
       ),
     );
   }
@@ -580,4 +797,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           InviteDialog(conversationId: widget.conversationId),
     );
   }
+}
+
+class _QuickAction {
+  final IconData icon;
+  final String label;
+  final String prompt;
+  const _QuickAction(this.icon, this.label, this.prompt);
 }

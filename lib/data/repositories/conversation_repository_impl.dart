@@ -29,6 +29,10 @@ class ConversationRepositoryImpl implements ConversationRepository {
       _apiClient.generateSummary(conversationId);
 
   @override
+  Future<void> updateTitle(String conversationId, String title) =>
+      _apiClient.updateTitle(conversationId, title);
+
+  @override
   Future<void> nudge(String conversationId) =>
       _apiClient.nudge(conversationId);
 }

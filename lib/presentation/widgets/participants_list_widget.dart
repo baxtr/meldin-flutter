@@ -12,10 +12,11 @@ class ParticipantsListWidget extends StatelessWidget {
   final VoidCallback onToggleDarkMode;
   final bool isDarkMode;
   final int messagesCount;
-  final VoidCallback onNudge;
-  final bool isNudging;
   final bool hasAgents;
   final void Function(String) onRemoveParticipant;
+  final int bookmarkCount;
+  final VoidCallback? onShowBookmarks;
+  final VoidCallback? onChatHistory;
 
   const ParticipantsListWidget({
     super.key,
@@ -28,10 +29,11 @@ class ParticipantsListWidget extends StatelessWidget {
     required this.onToggleDarkMode,
     required this.isDarkMode,
     required this.messagesCount,
-    required this.onNudge,
-    required this.isNudging,
     required this.hasAgents,
     required this.onRemoveParticipant,
+    this.bookmarkCount = 0,
+    this.onShowBookmarks,
+    this.onChatHistory,
   });
 
   @override
@@ -64,12 +66,22 @@ class ParticipantsListWidget extends StatelessWidget {
                     'Invite People', onInvite),
                 _actionButton(context, Icons.add_comment_outlined,
                     'New Chat', onNewChat),
+                _actionButton(context, Icons.history,
+                    'Chat History', onChatHistory),
                 if (messagesCount > 0) ...[
                   _actionButton(context, Icons.summarize_outlined,
                       'Summarize', onSummarize),
                   _actionButton(context, Icons.download_outlined,
                       'Export', onDownload),
                 ],
+                if (bookmarkCount > 0)
+                  _actionButton(
+                    context,
+                    Icons.bookmark_rounded,
+                    'Bookmarks ($bookmarkCount)',
+                    onShowBookmarks,
+                    iconColor: Colors.amber.shade600,
+                  ),
                 _actionButton(
                   context,
                   isDarkMode
@@ -260,46 +272,6 @@ class ParticipantsListWidget extends StatelessWidget {
             ),
           ),
 
-          // Nudge button — orange filled like original
-          if (hasAgents)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-              child: SizedBox(
-                width: double.infinity,
-                height: 42,
-                child: ElevatedButton.icon(
-                  onPressed: !isNudging ? onNudge : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange.shade700,
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor:
-                        theme.colorScheme.onSurface.withValues(alpha: 0.1),
-                    disabledForegroundColor:
-                        theme.colorScheme.onSurface.withValues(alpha: 0.3),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  icon: isNudging
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.bolt, size: 18),
-                  label: Text(
-                    isNudging ? 'Nudging...' : 'Nudge',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-              ),
-            ),
         ],
       ),
     );
@@ -309,8 +281,9 @@ class ParticipantsListWidget extends StatelessWidget {
     BuildContext context,
     IconData icon,
     String label,
-    VoidCallback? onTap,
-  ) {
+    VoidCallback? onTap, {
+    Color? iconColor,
+  }) {
     final theme = Theme.of(context);
 
     return Material(
@@ -326,8 +299,9 @@ class ParticipantsListWidget extends StatelessWidget {
               children: [
                 Icon(icon,
                     size: 20,
-                    color: theme.colorScheme.onSurface
-                        .withValues(alpha: 0.6)),
+                    color: iconColor ??
+                        theme.colorScheme.onSurface
+                            .withValues(alpha: 0.6)),
                 const SizedBox(width: 12),
                 Text(
                   label,

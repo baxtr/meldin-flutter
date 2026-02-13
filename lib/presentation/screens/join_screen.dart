@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../providers/session_provider.dart';
+import '../providers/session_provider.dart' show sessionProvider, ConversationHistory;
 import '../providers/websocket_provider.dart';
+import '../providers/conversation_providers.dart';
 import '../../data/models/websocket_message.dart';
 import '../../data/models/participant.dart';
 import '../../data/services/websocket_service.dart';
 
 class JoinScreen extends ConsumerStatefulWidget {
-  final String conversationId;
-  const JoinScreen({super.key, required this.conversationId});
+  final String? conversationId;
+  const JoinScreen({super.key, this.conversationId});
 
   @override
   ConsumerState<JoinScreen> createState() => _JoinScreenState();
@@ -18,28 +19,38 @@ class JoinScreen extends ConsumerStatefulWidget {
 class _JoinScreenState extends ConsumerState<JoinScreen> {
   final _nameController = TextEditingController();
   bool _autoJoined = false;
+  bool _isCreating = false;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _checkSavedSession());
-  }
-
-  void _checkSavedSession() {
-    final session = ref.read(sessionProvider(widget.conversationId));
-    if (session.hasJoined && session.userName.isNotEmpty) {
-      _nameController.text = session.userName;
-      _doJoin(session.userName);
+    if (widget.conversationId != null) {
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _checkSavedSession());
     }
   }
 
-  void _doJoin(String name) {
-    if (name.trim().isEmpty) return;
+  void _checkSavedSession() {
+    if (widget.conversationId == null) return;
+    final session = ref.read(sessionProvider(widget.conversationId!));
+    if (session.hasJoined && session.userName.isNotEmpty) {
+      _nameController.text = session.userName;
+      _joinExisting(session.userName);
+    }
+  }
 
-    final session = ref.read(sessionProvider(widget.conversationId));
-    ref.read(sessionProvider(widget.conversationId).notifier).join(name.trim());
+  void _joinExisting(String name) {
+    if (name.trim().isEmpty || widget.conversationId == null) return;
 
-    final wsService = ref.read(wsServiceProvider(widget.conversationId));
+    final session = ref.read(sessionProvider(widget.conversationId!));
+    ref
+        .read(sessionProvider(widget.conversationId!).notifier)
+        .join(name.trim());
+
+    // Track this conversation locally
+    ConversationHistory.addId(widget.conversationId!);
+
+    final wsService = ref.read(wsServiceProvider(widget.conversationId!));
     wsService.send(WsJoin(Participant(
       id: session.userId,
       name: name.trim(),
@@ -49,6 +60,51 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
 
     if (mounted) {
       context.go('/chat/${widget.conversationId}');
+    }
+  }
+
+  Future<void> _startNew(String name) async {
+    if (name.trim().isEmpty) return;
+    setState(() => _isCreating = true);
+
+    try {
+      final conv = await ref
+          .read(conversationRepoProvider)
+          .createConversation(title: 'New Conversation');
+
+      if (!mounted) return;
+
+      ref.read(sessionProvider(conv.id).notifier).join(name.trim());
+      final session = ref.read(sessionProvider(conv.id));
+
+      // Track this conversation locally
+      await ConversationHistory.addId(conv.id);
+
+      final wsService = ref.read(wsServiceProvider(conv.id));
+      wsService.send(WsJoin(Participant(
+        id: session.userId,
+        name: name.trim(),
+        type: 'human',
+        status: 'online',
+      )));
+
+      context.go('/chat/${conv.id}');
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isCreating = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to start conversation')),
+        );
+      }
+    }
+  }
+
+  void _handleSubmit() {
+    final name = _nameController.text;
+    if (widget.conversationId != null) {
+      _joinExisting(name);
+    } else {
+      _startNew(name);
     }
   }
 
@@ -62,18 +118,23 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final isJoining = widget.conversationId != null;
 
-    ref.listen(connectionStatusProvider(widget.conversationId), (prev, next) {
-      next.whenData((status) {
-        if (status == ConnectionStatus.open && !_autoJoined) {
-          final session = ref.read(sessionProvider(widget.conversationId));
-          if (session.hasJoined && session.userName.isNotEmpty) {
-            _autoJoined = true;
-            _doJoin(session.userName);
+    if (isJoining) {
+      ref.listen(connectionStatusProvider(widget.conversationId!),
+          (prev, next) {
+        next.whenData((status) {
+          if (status == ConnectionStatus.open && !_autoJoined) {
+            final session =
+                ref.read(sessionProvider(widget.conversationId!));
+            if (session.hasJoined && session.userName.isNotEmpty) {
+              _autoJoined = true;
+              _joinExisting(session.userName);
+            }
           }
-        }
+        });
       });
-    });
+    }
 
     return Scaffold(
       body: Container(
@@ -95,11 +156,7 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Logo
-                    Image.asset(
-                      'assets/meldin-logo.png',
-                      height: 100,
-                    ),
+                    Image.asset('assets/meldin-logo.png', height: 100),
                     const SizedBox(height: 12),
                     Text(
                       'Where humans and AI converse',
@@ -109,8 +166,6 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
                       ),
                     ),
                     const SizedBox(height: 40),
-
-                    // Join card
                     Card(
                       child: Padding(
                         padding: const EdgeInsets.all(24),
@@ -118,8 +173,11 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             Text(
-                              'Join conversation',
-                              style: theme.textTheme.titleMedium?.copyWith(
+                              isJoining
+                                  ? 'Join conversation'
+                                  : 'Start a conversation',
+                              style:
+                                  theme.textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -128,31 +186,46 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
                               controller: _nameController,
                               decoration: const InputDecoration(
                                 hintText: 'Your name',
-                                prefixIcon:
-                                    Icon(Icons.person_outline, size: 20),
+                                prefixIcon: Icon(Icons.person_outline,
+                                    size: 20),
                               ),
                               textInputAction: TextInputAction.go,
                               autofocus: true,
-                              onSubmitted: (_) =>
-                                  _doJoin(_nameController.text),
+                              enabled: !_isCreating,
+                              onSubmitted: (_) => _handleSubmit(),
                             ),
                             const SizedBox(height: 16),
                             SizedBox(
                               height: 50,
                               child: ElevatedButton(
-                                onPressed: () =>
-                                    _doJoin(_nameController.text),
-                                child: const Text('Join'),
+                                onPressed:
+                                    _isCreating ? null : _handleSubmit,
+                                child: _isCreating
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child:
+                                            CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : Text(isJoining
+                                        ? 'Join'
+                                        : 'Start'),
                               ),
                             ),
                           ],
                         ),
                       ),
                     ),
-
-                    const SizedBox(height: 32),
-
-                    // Feature pills
+                    const SizedBox(height: 20),
+                    TextButton.icon(
+                      onPressed: () => context.push('/history'),
+                      icon: const Icon(Icons.history, size: 18),
+                      label: const Text('Chat History'),
+                    ),
+                    const SizedBox(height: 20),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,

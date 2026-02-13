@@ -34,6 +34,32 @@ final sessionProvider =
   (ref, conversationId) => SessionNotifier(conversationId),
 );
 
+/// Tracks which conversation IDs this device has participated in.
+class ConversationHistory {
+  static const _key = 'meldin_conversation_ids';
+
+  static Future<List<String>> getIds() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getStringList(_key) ?? [];
+  }
+
+  static Future<void> addId(String conversationId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final ids = prefs.getStringList(_key) ?? [];
+    if (!ids.contains(conversationId)) {
+      ids.insert(0, conversationId); // newest first
+      await prefs.setStringList(_key, ids);
+    }
+  }
+
+  static Future<void> removeId(String conversationId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final ids = prefs.getStringList(_key) ?? [];
+    ids.remove(conversationId);
+    await prefs.setStringList(_key, ids);
+  }
+}
+
 class SessionNotifier extends StateNotifier<SessionState> {
   SessionNotifier(String conversationId)
       : super(SessionState(conversationId: conversationId, userId: '')) {

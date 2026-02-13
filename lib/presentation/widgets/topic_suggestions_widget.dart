@@ -7,12 +7,14 @@ class TopicSuggestionsWidget extends ConsumerStatefulWidget {
   final void Function(List<Participant> agents) onSelectAgents;
   final VoidCallback onSwitchToManual;
   final void Function(String topic)? onSetTopic;
+  final String? initialTopic;
 
   const TopicSuggestionsWidget({
     super.key,
     required this.onSelectAgents,
     required this.onSwitchToManual,
     this.onSetTopic,
+    this.initialTopic,
   });
 
   @override
@@ -27,6 +29,9 @@ class _TopicSuggestionsWidgetState
   @override
   void initState() {
     super.initState();
+    if (widget.initialTopic != null && widget.initialTopic!.isNotEmpty) {
+      _topicController.text = widget.initialTopic!;
+    }
     _topicController.addListener(() => setState(() {}));
   }
 

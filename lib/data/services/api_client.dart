@@ -57,6 +57,14 @@ class ApiClient {
     return response.data!['summary'] as String;
   }
 
+  /// PATCH /api/conversations/:id — update title
+  Future<void> updateTitle(String conversationId, String title) async {
+    await _dio.patch<Map<String, dynamic>>(
+      '/api/conversations/$conversationId',
+      data: {'title': title},
+    );
+  }
+
   /// POST /api/nudge/:conversationId
   Future<void> nudge(String conversationId) async {
     await _dio.post<Map<String, dynamic>>('/api/nudge/$conversationId');

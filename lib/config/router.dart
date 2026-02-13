@@ -24,6 +24,11 @@ final router = GoRouter(
     GoRoute(
       path: '/',
       pageBuilder: (context, state) =>
+          _fadePage(const JoinScreen(), state),
+    ),
+    GoRoute(
+      path: '/history',
+      pageBuilder: (context, state) =>
           _fadePage(const ConversationListScreen(), state),
     ),
     GoRoute(

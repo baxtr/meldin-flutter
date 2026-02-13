@@ -7,5 +7,6 @@ abstract class ConversationRepository {
   Future<Conversation> createConversation({String? title});
   Future<List<Participant>> suggestAgents(String topic);
   Future<String> generateSummary(String conversationId);
+  Future<void> updateTitle(String conversationId, String title);
   Future<void> nudge(String conversationId);
 }

@@ -10,12 +10,16 @@ class ChatMessageWidget extends StatelessWidget {
   final Message message;
   final bool isOwnMessage;
   final bool showHeader;
+  final bool isBookmarked;
+  final void Function(String messageId)? onToggleBookmark;
 
   const ChatMessageWidget({
     super.key,
     required this.message,
     this.isOwnMessage = false,
     this.showHeader = true,
+    this.isBookmarked = false,
+    this.onToggleBookmark,
   });
 
   @override
@@ -58,6 +62,18 @@ class ChatMessageWidget extends StatelessWidget {
                     duration: Duration(seconds: 2),
                   ),
                 );
+              },
+            ),
+            ListTile(
+              leading: Icon(
+                isBookmarked
+                    ? Icons.bookmark_rounded
+                    : Icons.bookmark_border_rounded,
+              ),
+              title: Text(isBookmarked ? 'Remove bookmark' : 'Bookmark'),
+              onTap: () {
+                Navigator.pop(ctx);
+                onToggleBookmark?.call(message.id);
               },
             ),
             ListTile(
@@ -241,6 +257,14 @@ class ChatMessageWidget extends StatelessWidget {
                                 .withValues(alpha: 0.35),
                           ),
                         ),
+                        if (isBookmarked) ...[
+                          const SizedBox(width: 6),
+                          Icon(
+                            Icons.bookmark_rounded,
+                            size: 14,
+                            color: Colors.amber.shade600,
+                          ),
+                        ],
                       ],
                     ),
                     const SizedBox(height: 4),
@@ -283,49 +307,76 @@ class ChatMessageWidget extends StatelessWidget {
       onLongPress: () => _showMessageActions(context),
       child: Padding(
         padding: EdgeInsets.only(
-          left: 16,
+          left: 64,
           right: 16,
-          top: showHeader ? 4 : 2,
+          top: showHeader ? 6 : 2,
           bottom: 2,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            Container(
-              constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.75,
-              ),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primary,
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(18),
-                  topRight: Radius.circular(showHeader ? 18 : 12),
-                  bottomLeft: const Radius.circular(18),
-                  bottomRight: const Radius.circular(4),
-                ),
-              ),
-              child: Text(
-                message.content,
-                style: const TextStyle(
-                  fontSize: 15,
-                  height: 1.4,
-                  color: Colors.white,
-                ),
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (showHeader) ...[
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (isBookmarked) ...[
+                          Icon(
+                            Icons.bookmark_rounded,
+                            size: 12,
+                            color: Colors.amber.shade600,
+                          ),
+                          const SizedBox(width: 4),
+                        ],
+                        Text(
+                          timeStr,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: theme.colorScheme.onSurface
+                                .withValues(alpha: 0.3),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          message.senderName,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: theme.colorScheme.onSurface
+                                .withValues(alpha: 0.7),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                  ],
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary,
+                      borderRadius: BorderRadius.only(
+                        topLeft: const Radius.circular(18),
+                        topRight: Radius.circular(showHeader ? 18 : 12),
+                        bottomLeft: const Radius.circular(18),
+                        bottomRight: const Radius.circular(4),
+                      ),
+                    ),
+                    child: Text(
+                      message.content,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        height: 1.4,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            if (showHeader) ...[
-              const SizedBox(height: 3),
-              Text(
-                timeStr,
-                style: TextStyle(
-                  fontSize: 11,
-                  color:
-                      theme.colorScheme.onSurface.withValues(alpha: 0.3),
-                ),
-              ),
-            ],
           ],
         ),
       ),

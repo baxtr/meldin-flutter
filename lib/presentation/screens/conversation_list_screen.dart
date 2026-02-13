@@ -23,48 +23,12 @@ class _ConversationListScreenState
     super.dispose();
   }
 
-  void _showNewConversationDialog() {
-    final titleController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('New Conversation'),
-        content: TextField(
-          controller: titleController,
-          decoration: const InputDecoration(
-            hintText: 'What should we discuss?',
-          ),
-          autofocus: true,
-          textInputAction: TextInputAction.done,
-          onSubmitted: (_) =>
-              _createConversation(ctx, titleController.text),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () =>
-                _createConversation(ctx, titleController.text),
-            child: const Text('Create'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _createConversation(
-      BuildContext dialogCtx, String title) async {
-    Navigator.pop(dialogCtx);
-    final finalTitle =
-        title.trim().isEmpty ? 'New Conversation' : title.trim();
+  Future<void> _createConversation() async {
     try {
       final conv = await ref
           .read(conversationRepoProvider)
-          .createConversation(title: finalTitle);
-      ref.invalidate(conversationsProvider);
+          .createConversation(title: 'New Conversation');
+      ref.invalidate(localConversationsProvider);
       if (mounted) {
         context.push('/join/${conv.id}');
       }
@@ -80,7 +44,7 @@ class _ConversationListScreenState
 
   @override
   Widget build(BuildContext context) {
-    final conversationsAsync = ref.watch(conversationsProvider);
+    final conversationsAsync = ref.watch(localConversationsProvider);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -154,7 +118,7 @@ class _ConversationListScreenState
                 const SizedBox(height: 24),
                 ElevatedButton(
                   onPressed: () =>
-                      ref.invalidate(conversationsProvider),
+                      ref.invalidate(localConversationsProvider),
                   child: const Text('Try Again'),
                 ),
               ],
@@ -204,7 +168,7 @@ class _ConversationListScreenState
 
           return RefreshIndicator(
             onRefresh: () async =>
-                ref.invalidate(conversationsProvider),
+                ref.invalidate(localConversationsProvider),
             child: Column(
               children: [
                 // Search bar
@@ -382,7 +346,7 @@ class _ConversationListScreenState
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _showNewConversationDialog,
+        onPressed: _createConversation,
         elevation: 2,
         child: const Icon(Icons.add_rounded),
       ),
