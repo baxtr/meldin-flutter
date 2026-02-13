@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 
 class MeldinTheme {
-  static const Color meldinBlue = Color(0xFF3B82F6);
+  // Brand colors matching the logo gradient
+  static const Color meldinCyan = Color(0xFF22D3EE);
+  static const Color meldinCyanLight = Color(0xFF67E8F9);
+  static const Color meldinCyanDark = Color(0xFF06B6D4);
 
   static ThemeData light() => ThemeData(
         useMaterial3: true,
         brightness: Brightness.light,
-        colorSchemeSeed: meldinBlue,
-        scaffoldBackgroundColor: const Color(0xFFF9FAFB),
+        colorSchemeSeed: meldinCyan,
+        scaffoldBackgroundColor: const Color(0xFFF0FDFA),
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.white,
           foregroundColor: Color(0xFF111827),
@@ -31,14 +34,14 @@ class MeldinTheme {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: meldinBlue, width: 2),
+            borderSide: const BorderSide(color: meldinCyan, width: 2),
           ),
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: meldinBlue,
+            backgroundColor: meldinCyan,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
             shape: RoundedRectangleBorder(
@@ -51,7 +54,7 @@ class MeldinTheme {
   static ThemeData dark() => ThemeData(
         useMaterial3: true,
         brightness: Brightness.dark,
-        colorSchemeSeed: meldinBlue,
+        colorSchemeSeed: meldinCyan,
         scaffoldBackgroundColor: const Color(0xFF111827),
         appBarTheme: const AppBarTheme(
           backgroundColor: Color(0xFF1F2937),
@@ -76,14 +79,14 @@ class MeldinTheme {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: meldinBlue, width: 2),
+            borderSide: const BorderSide(color: meldinCyan, width: 2),
           ),
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: meldinBlue,
+            backgroundColor: meldinCyan,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
             shape: RoundedRectangleBorder(

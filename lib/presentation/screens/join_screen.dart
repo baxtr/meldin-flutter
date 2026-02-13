@@ -85,8 +85,8 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: isDark
-                ? [const Color(0xFF111827), const Color(0xFF1F2937)]
-                : [const Color(0xFFEFF6FF), const Color(0xFFDBEAFE)],
+                ? [const Color(0xFF111827), const Color(0xFF0F172A)]
+                : [const Color(0xFFECFEFF), const Color(0xFFCFFAFE)],
           ),
         ),
         child: SafeArea(
@@ -105,19 +105,10 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Logo placeholder
-                        Icon(
-                          Icons.forum_rounded,
-                          size: 80,
-                          color: theme.colorScheme.primary,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Meldin',
-                          style: theme.textTheme.headlineMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: theme.colorScheme.primary,
-                          ),
+                        // Logo
+                        Image.asset(
+                          'assets/meldin-logo.png',
+                          height: 120,
                         ),
                         const SizedBox(height: 8),
                         Text(
@@ -168,7 +159,7 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
                           decoration: BoxDecoration(
                             color: isDark
                                 ? const Color(0xFF374151)
-                                : const Color(0xFFEFF6FF),
+                                : const Color(0xFFECFEFF),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Column(
