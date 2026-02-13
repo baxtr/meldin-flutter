@@ -54,7 +54,7 @@ class _ConversationListScreenState
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Image.asset('assets/meldin-logo.png', height: 30),
+            Image.asset('assets/meldin-icon.png', height: 30),
             const SizedBox(width: 10),
             Text(
               'Meldin',

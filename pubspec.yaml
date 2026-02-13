@@ -48,3 +48,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/meldin-logo.png
+    - assets/meldin-icon.png

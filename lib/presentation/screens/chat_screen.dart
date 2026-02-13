@@ -608,7 +608,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Image.asset('assets/meldin-logo.png', height: 26),
+            Image.asset('assets/meldin-icon.png', height: 28),
             const SizedBox(width: 8),
             Text(
               'Meldin',
