@@ -17,11 +17,23 @@ class AvatarWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final url = getAvatarUrl(name, isAgent);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
-    return ClipOval(
-      child: SizedBox(
-        width: size,
-        height: size,
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: isDark ? const Color(0xFF252830) : const Color(0xFFF3F4F6),
+        border: isAgent
+            ? Border.all(
+                color: theme.colorScheme.primary.withValues(alpha: 0.3),
+                width: 1.5,
+              )
+            : null,
+      ),
+      child: ClipOval(
         child: SvgPicture.network(
           url,
           width: size,
@@ -39,7 +51,14 @@ class AvatarWidget extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: color,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            color,
+            color.withValues(alpha: 0.7),
+          ],
+        ),
         shape: BoxShape.circle,
       ),
       alignment: Alignment.center,
@@ -47,8 +66,9 @@ class AvatarWidget extends StatelessWidget {
         getInitials(name),
         style: TextStyle(
           color: Colors.white,
-          fontSize: size * 0.38,
-          fontWeight: FontWeight.w600,
+          fontSize: size * 0.36,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.5,
         ),
       ),
     );

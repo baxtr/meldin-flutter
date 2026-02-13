@@ -1,11 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:share_plus/share_plus.dart' show Share;
 import '../../data/models/message.dart';
 import 'avatar_widget.dart';
 
 class ChatMessageWidget extends StatelessWidget {
   final Message message;
+  final bool isOwnMessage;
+  final bool showHeader;
 
-  const ChatMessageWidget({super.key, required this.message});
+  const ChatMessageWidget({
+    super.key,
+    required this.message,
+    this.isOwnMessage = false,
+    this.showHeader = true,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -13,96 +24,137 @@ class ChatMessageWidget extends StatelessWidget {
     return _buildMessage(context);
   }
 
+  void _showMessageActions(BuildContext context) {
+    HapticFeedback.mediumImpact();
+    final theme = Theme.of(context);
+
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            ListTile(
+              leading: const Icon(Icons.copy_rounded),
+              title: const Text('Copy message'),
+              onTap: () {
+                Clipboard.setData(ClipboardData(text: message.content));
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Copied to clipboard'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.share_rounded),
+              title: const Text('Share'),
+              onTap: () {
+                Navigator.pop(ctx);
+                Share.share('${message.senderName}: ${message.content}');
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildAnnouncement(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Center(
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 400),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: isDark
-                  ? [
-                      const Color(0xFF1E3A5F).withValues(alpha: 0.3),
-                      const Color(0xFF312E81).withValues(alpha: 0.3),
-                    ]
-                  : [const Color(0xFFEFF6FF), const Color(0xFFEEF2FF)],
-            ),
-            border: Border.all(
-              color: isDark
-                  ? const Color(0xFF1E40AF).withValues(alpha: 0.5)
-                  : const Color(0xFFBFDBFE),
-            ),
-            borderRadius: BorderRadius.circular(12),
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: isDark
+              ? theme.colorScheme.primary.withValues(alpha: 0.08)
+              : theme.colorScheme.primary.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: theme.colorScheme.primary.withValues(alpha: 0.15),
           ),
-          child: Row(
-            children: [
-              AvatarWidget(
-                  name: message.senderName, isAgent: true, size: 48),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            message.senderName,
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                            overflow: TextOverflow.ellipsis,
+        ),
+        child: Row(
+          children: [
+            AvatarWidget(name: message.senderName, isAgent: true, size: 40),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          message.senderName,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primary
+                              .withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          'joined',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.primary
-                                .withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            'joined',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: theme.colorScheme.primary,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
+                    ],
+                  ),
+                  if (message.senderModel != null ||
+                      message.senderExpertise != null) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      [
+                        if (message.senderModel != null)
+                          message.senderModel!.split('/').last,
+                        if (message.senderExpertise != null)
+                          message.senderExpertise!,
+                      ].join(' \u00B7 '),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: theme.colorScheme.onSurface
+                            .withValues(alpha: 0.5),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    if (message.senderModel != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        'Model: ${message.senderModel!.split('/').last}',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.6),
-                        ),
-                      ),
-                    ],
-                    if (message.senderExpertise != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        message.senderExpertise!,
-                        style: theme.textTheme.bodySmall,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
                   ],
-                ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -114,90 +166,254 @@ class ChatMessageWidget extends StatelessWidget {
     final isAgent = message.senderType == 'agent';
     final time = DateTime.fromMillisecondsSinceEpoch(message.timestamp);
     final timeStr =
-        '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}:${time.second.toString().padLeft(2, '0')}';
+        '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment:
-            isAgent ? MainAxisAlignment.start : MainAxisAlignment.end,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (isAgent) ...[
-            AvatarWidget(
-                name: message.senderName, isAgent: true, size: 32),
-            const SizedBox(width: 10),
-          ],
-          Flexible(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.7,
-              ),
+    if (isOwnMessage) {
+      return _buildOwnMessage(context, theme, isDark, timeStr);
+    }
+
+    return GestureDetector(
+      onLongPress: () => _showMessageActions(context),
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: showHeader ? 10 : 2,
+          bottom: 2,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (showHeader)
+              AvatarWidget(
+                name: message.senderName,
+                isAgent: isAgent,
+                size: 34,
+              )
+            else
+              const SizedBox(width: 34),
+            const SizedBox(width: 12),
+            Expanded(
               child: Column(
-                crossAxisAlignment: isAgent
-                    ? CrossAxisAlignment.start
-                    : CrossAxisAlignment.end,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        message.senderName,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: isAgent
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.onSurface
-                                  .withValues(alpha: 0.7),
+                  if (showHeader) ...[
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            message.senderName,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: theme.colorScheme.onSurface,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        timeStr,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.4),
+                        if (isAgent) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.primary
+                                  .withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              'AI',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: theme.colorScheme.primary,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                        const SizedBox(width: 8),
+                        Text(
+                          timeStr,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: theme.colorScheme.onSurface
+                                .withValues(alpha: 0.35),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: isAgent
-                          ? (isDark
-                              ? const Color(0xFF1E3A5F).withValues(alpha: 0.5)
-                              : const Color(0xFFDBEAFE))
-                          : (isDark
-                              ? const Color(0xFF166534)
-                              : const Color(0xFF4ADE80)),
-                      borderRadius: BorderRadius.circular(12),
+                      ],
                     ),
-                    child: Text(
+                    const SizedBox(height: 4),
+                  ],
+                  // Render markdown for agent messages, plain text for humans
+                  if (isAgent)
+                    MarkdownBody(
+                      data: message.content,
+                      selectable: false,
+                      styleSheet: _markdownStyle(theme, isDark),
+                      onTapLink: (text, href, title) {
+                        if (href != null) {
+                          launchUrl(Uri.parse(href),
+                              mode: LaunchMode.externalApplication);
+                        }
+                      },
+                    )
+                  else
+                    Text(
                       message.content,
                       style: TextStyle(
-                        color: isAgent
-                            ? theme.colorScheme.onSurface
-                            : Colors.white,
-                        height: 1.4,
+                        fontSize: 15,
+                        height: 1.5,
+                        color: theme.colorScheme.onSurface
+                            .withValues(alpha: 0.88),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),
-          ),
-          if (!isAgent) ...[
-            const SizedBox(width: 10),
-            AvatarWidget(
-                name: message.senderName, isAgent: false, size: 32),
           ],
-        ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildOwnMessage(
+      BuildContext context, ThemeData theme, bool isDark, String timeStr) {
+    return GestureDetector(
+      onLongPress: () => _showMessageActions(context),
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: showHeader ? 4 : 2,
+          bottom: 2,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Container(
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width * 0.75,
+              ),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary,
+                borderRadius: BorderRadius.only(
+                  topLeft: const Radius.circular(18),
+                  topRight: Radius.circular(showHeader ? 18 : 12),
+                  bottomLeft: const Radius.circular(18),
+                  bottomRight: const Radius.circular(4),
+                ),
+              ),
+              child: Text(
+                message.content,
+                style: const TextStyle(
+                  fontSize: 15,
+                  height: 1.4,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+            if (showHeader) ...[
+              const SizedBox(height: 3),
+              Text(
+                timeStr,
+                style: TextStyle(
+                  fontSize: 11,
+                  color:
+                      theme.colorScheme.onSurface.withValues(alpha: 0.3),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  MarkdownStyleSheet _markdownStyle(ThemeData theme, bool isDark) {
+    final textColor =
+        theme.colorScheme.onSurface.withValues(alpha: 0.88);
+    final codeBackground =
+        isDark ? const Color(0xFF1E2030) : const Color(0xFFF3F4F6);
+    final codeBorder =
+        isDark ? const Color(0xFF2A2D37) : const Color(0xFFE5E7EB);
+
+    return MarkdownStyleSheet(
+      p: TextStyle(fontSize: 15, height: 1.5, color: textColor),
+      strong: const TextStyle(fontWeight: FontWeight.w700),
+      em: const TextStyle(fontStyle: FontStyle.italic),
+      code: TextStyle(
+        fontFamily: 'monospace',
+        fontSize: 13,
+        color: textColor,
+        backgroundColor: codeBackground,
+      ),
+      codeblockDecoration: BoxDecoration(
+        color: codeBackground,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: codeBorder),
+      ),
+      codeblockPadding: const EdgeInsets.all(12),
+      h1: TextStyle(
+          fontSize: 22,
+          fontWeight: FontWeight.w700,
+          color: textColor,
+          height: 1.3),
+      h2: TextStyle(
+          fontSize: 19,
+          fontWeight: FontWeight.w700,
+          color: textColor,
+          height: 1.3),
+      h3: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          color: textColor,
+          height: 1.4),
+      h4: TextStyle(
+          fontSize: 15, fontWeight: FontWeight.w600, color: textColor),
+      h5: TextStyle(
+          fontSize: 14, fontWeight: FontWeight.w600, color: textColor),
+      h6: TextStyle(
+          fontSize: 13, fontWeight: FontWeight.w600, color: textColor),
+      blockquoteDecoration: BoxDecoration(
+        border: Border(
+          left: BorderSide(
+            color: theme.colorScheme.primary.withValues(alpha: 0.4),
+            width: 3,
+          ),
+        ),
+      ),
+      blockquotePadding:
+          const EdgeInsets.only(left: 12, top: 4, bottom: 4),
+      blockquote: TextStyle(
+        fontSize: 15,
+        height: 1.5,
+        color: textColor,
+        fontStyle: FontStyle.italic,
+      ),
+      listBullet: TextStyle(fontSize: 15, color: textColor),
+      a: TextStyle(
+        color: theme.colorScheme.primary,
+        decoration: TextDecoration.underline,
+        decorationColor:
+            theme.colorScheme.primary.withValues(alpha: 0.4),
+      ),
+      horizontalRuleDecoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.12),
+          ),
+        ),
+      ),
+      tableHead: TextStyle(
+          fontSize: 14, fontWeight: FontWeight.w600, color: textColor),
+      tableBody: TextStyle(fontSize: 14, color: textColor),
+      tableBorder: TableBorder.all(
+        color: theme.colorScheme.onSurface.withValues(alpha: 0.12),
+      ),
+      blockSpacing: 8,
     );
   }
 }

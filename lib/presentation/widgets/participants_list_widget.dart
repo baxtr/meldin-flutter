@@ -37,58 +37,46 @@ class ParticipantsListWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Container(
       decoration: BoxDecoration(
-        color: theme.cardTheme.color ?? theme.cardColor,
+        color: isDark ? const Color(0xFF1A1D27) : Colors.white,
         border: Border(
           left: BorderSide(
-            color: theme.dividerColor.withValues(alpha: 0.3),
+            color: isDark
+                ? const Color(0xFF2A2D37)
+                : const Color(0xFFE5E7EB),
+            width: 0.5,
           ),
         ),
       ),
       child: Column(
         children: [
-          // Action buttons
+          // Action buttons — vertical full-width list
           Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
             child: Column(
               children: [
+                _actionButton(context, Icons.smart_toy_outlined,
+                    'Add AI Agents', onAddAgent),
+                _actionButton(context, Icons.person_add_outlined,
+                    'Invite People', onInvite),
+                _actionButton(context, Icons.add_comment_outlined,
+                    'New Chat', onNewChat),
+                if (messagesCount > 0) ...[
+                  _actionButton(context, Icons.summarize_outlined,
+                      'Summarize', onSummarize),
+                  _actionButton(context, Icons.download_outlined,
+                      'Export', onDownload),
+                ],
                 _actionButton(
                   context,
-                  icon: Icons.smart_toy,
-                  label: 'Add AI Agents',
-                  onTap: onAddAgent,
-                ),
-                _actionButton(
-                  context,
-                  icon: Icons.share,
-                  label: 'Invite People',
-                  onTap: onInvite,
-                ),
-                _actionButton(
-                  context,
-                  icon: Icons.add,
-                  label: 'New Chat',
-                  onTap: onNewChat,
-                ),
-                _actionButton(
-                  context,
-                  icon: Icons.description,
-                  label: 'End & Summarize',
-                  onTap: messagesCount > 0 ? onSummarize : null,
-                ),
-                _actionButton(
-                  context,
-                  icon: Icons.download,
-                  label: 'Download',
-                  onTap: messagesCount > 0 ? onDownload : null,
-                ),
-                _actionButton(
-                  context,
-                  icon: isDarkMode ? Icons.light_mode : Icons.dark_mode,
-                  label: isDarkMode ? 'Light Mode' : 'Dark Mode',
-                  onTap: onToggleDarkMode,
+                  isDarkMode
+                      ? Icons.light_mode_outlined
+                      : Icons.dark_mode_outlined,
+                  isDarkMode ? 'Light Mode' : 'Dark Mode',
+                  onToggleDarkMode,
                 ),
               ],
             ),
@@ -96,21 +84,41 @@ class ParticipantsListWidget extends StatelessWidget {
 
           // Participants header
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'PARTICIPANTS',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSurface
-                      .withValues(alpha: 0.5),
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1,
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            child: Row(
+              children: [
+                Text(
+                  'PARTICIPANTS',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.8,
+                    color: theme.colorScheme.onSurface
+                        .withValues(alpha: 0.4),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 7, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.onSurface
+                        .withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '${participants.length}',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: theme.colorScheme.onSurface
+                          .withValues(alpha: 0.4),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 8),
 
           // Participants list
           Expanded(
@@ -122,103 +130,129 @@ class ParticipantsListWidget extends StatelessWidget {
                 final isAgent = p.type == 'agent';
 
                 return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: ListTile(
-                    dense: true,
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 8),
-                    leading: Stack(
-                      children: [
-                        AvatarWidget(
-                          name: p.name,
-                          isAgent: isAgent,
-                          size: 32,
-                        ),
-                        Positioned(
-                          bottom: 0,
-                          right: 0,
-                          child: Container(
-                            width: 10,
-                            height: 10,
-                            decoration: BoxDecoration(
-                              color: p.status == 'typing'
-                                  ? Colors.amber
-                                  : p.status == 'online'
-                                      ? Colors.green
-                                      : Colors.grey,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: theme.cardColor,
-                                width: 2,
+                  padding: const EdgeInsets.symmetric(vertical: 1),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: () {},
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 8),
+                        child: Row(
+                          children: [
+                            // Avatar with status dot
+                            Stack(
+                              children: [
+                                AvatarWidget(
+                                  name: p.name,
+                                  isAgent: isAgent,
+                                  size: 34,
+                                ),
+                                Positioned(
+                                  bottom: 0,
+                                  right: 0,
+                                  child: Container(
+                                    width: 10,
+                                    height: 10,
+                                    decoration: BoxDecoration(
+                                      color: p.status == 'typing'
+                                          ? Colors.amber
+                                          : p.status == 'online'
+                                              ? Colors.green
+                                              : const Color(0xFF6B7280),
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: isDark
+                                            ? const Color(0xFF1A1D27)
+                                            : Colors.white,
+                                        width: 2,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(width: 12),
+                            // Name + details
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    p.name,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 14,
+                                      color:
+                                          theme.colorScheme.onSurface,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 1),
+                                  if (isAgent) ...[
+                                    Text(
+                                      p.model?.split('/').last ??
+                                          'AI Agent',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color:
+                                            theme.colorScheme.primary,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    if (p.expertise != null &&
+                                        p.expertise!.isNotEmpty)
+                                      Text(
+                                        p.expertise!,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: theme
+                                              .colorScheme.onSurface
+                                              .withValues(alpha: 0.4),
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: 1,
+                                      ),
+                                  ] else
+                                    Text(
+                                      'Human',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: theme
+                                            .colorScheme.onSurface
+                                            .withValues(alpha: 0.45),
+                                      ),
+                                    ),
+                                ],
                               ),
                             ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    title: Text(
-                      p.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w500,
-                        fontSize: 14,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    subtitle: isAgent
-                        ? Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.start,
-                            children: [
+                            // Typing or remove
+                            if (p.status == 'typing')
                               Text(
-                                p.model?.split('/').last ?? 'AI Agent',
+                                'typing...',
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: theme.colorScheme.primary,
+                                  fontStyle: FontStyle.italic,
+                                  color: theme.colorScheme.primary
+                                      .withValues(alpha: 0.7),
                                 ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              if (p.expertise != null)
-                                Text(
-                                  p.expertise!,
-                                  style: TextStyle(
-                                    fontSize: 11,
+                              )
+                            else
+                              IconButton(
+                                icon: Icon(Icons.close,
+                                    size: 16,
                                     color: theme.colorScheme.onSurface
-                                        .withValues(alpha: 0.5),
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                            ],
-                          )
-                        : Text(
-                            'Human',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: theme.colorScheme.onSurface
-                                  .withValues(alpha: 0.5),
-                            ),
-                          ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (p.status == 'typing')
-                          Text(
-                            'typing...',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontStyle: FontStyle.italic,
-                              color: theme.colorScheme.onSurface
-                                  .withValues(alpha: 0.4),
-                            ),
-                          ),
-                        IconButton(
-                          icon: const Icon(Icons.close, size: 16),
-                          onPressed: () =>
-                              onRemoveParticipant(p.id),
-                          visualDensity: VisualDensity.compact,
-                          color: Colors.red.withValues(alpha: 0.6),
+                                        .withValues(alpha: 0.25)),
+                                onPressed: () =>
+                                    onRemoveParticipant(p.id),
+                                visualDensity: VisualDensity.compact,
+                                splashRadius: 16,
+                              ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 );
@@ -226,66 +260,86 @@ class ParticipantsListWidget extends StatelessWidget {
             ),
           ),
 
-          // Nudge button
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: hasAgents && !isNudging ? onNudge : null,
-                icon: isNudging
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Icon(Icons.bolt),
-                label: Text(isNudging ? 'Nudging...' : 'Nudge'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange.shade700,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: Colors.grey.shade400,
+          // Nudge button — orange filled like original
+          if (hasAgents)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              child: SizedBox(
+                width: double.infinity,
+                height: 42,
+                child: ElevatedButton.icon(
+                  onPressed: !isNudging ? onNudge : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange.shade700,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor:
+                        theme.colorScheme.onSurface.withValues(alpha: 0.1),
+                    disabledForegroundColor:
+                        theme.colorScheme.onSurface.withValues(alpha: 0.3),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  icon: isNudging
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.bolt, size: 18),
+                  label: Text(
+                    isNudging ? 'Nudging...' : 'Nudge',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
         ],
       ),
     );
   }
 
   Widget _actionButton(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
+    BuildContext context,
+    IconData icon,
+    String label,
     VoidCallback? onTap,
-  }) {
+  ) {
     final theme = Theme.of(context);
 
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Opacity(
-        opacity: onTap != null ? 1.0 : 0.4,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          child: Row(
-            children: [
-              Icon(icon, size: 20,
-                  color: theme.colorScheme.onSurface
-                      .withValues(alpha: 0.7)),
-              const SizedBox(width: 12),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: theme.colorScheme.onSurface
-                      .withValues(alpha: 0.8),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Opacity(
+          opacity: onTap != null ? 1.0 : 0.4,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              children: [
+                Icon(icon,
+                    size: 20,
+                    color: theme.colorScheme.onSurface
+                        .withValues(alpha: 0.6)),
+                const SizedBox(width: 12),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: theme.colorScheme.onSurface
+                        .withValues(alpha: 0.75),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

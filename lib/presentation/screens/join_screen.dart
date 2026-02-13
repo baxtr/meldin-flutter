@@ -22,7 +22,6 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
   @override
   void initState() {
     super.initState();
-    // Check for saved session after build
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkSavedSession());
   }
 
@@ -30,7 +29,6 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
     final session = ref.read(sessionProvider(widget.conversationId));
     if (session.hasJoined && session.userName.isNotEmpty) {
       _nameController.text = session.userName;
-      // Auto-rejoin
       _doJoin(session.userName);
     }
   }
@@ -61,11 +59,10 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
   }
 
   @override
-  Widget build(BuildContext context, ) {
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    // Listen for connection + auto-rejoin
     ref.listen(connectionStatusProvider(widget.conversationId), (prev, next) {
       next.whenData((status) {
         if (status == ConnectionStatus.open && !_autoJoined) {
@@ -82,113 +79,96 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
             colors: isDark
-                ? [const Color(0xFF111827), const Color(0xFF0F172A)]
-                : [const Color(0xFFECFEFF), const Color(0xFFCFFAFE)],
+                ? [const Color(0xFF0F1117), const Color(0xFF141720)]
+                : [const Color(0xFFF0FDFA), const Color(0xFFE0F7FA)],
           ),
         ),
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
-              child: Card(
-                elevation: 4,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 400),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Logo
-                        Image.asset(
-                          'assets/meldin-logo.png',
-                          height: 120,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Where humans and AI converse',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            color: theme.colorScheme.onSurface
-                                .withValues(alpha: 0.6),
-                          ),
-                        ),
-                        const SizedBox(height: 32),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Logo
+                    Image.asset(
+                      'assets/meldin-logo.png',
+                      height: 100,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Where humans and AI converse',
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: theme.colorScheme.onSurface
+                            .withValues(alpha: 0.5),
+                      ),
+                    ),
+                    const SizedBox(height: 40),
 
-                        // Name input
-                        TextField(
-                          controller: _nameController,
-                          decoration: const InputDecoration(
-                            hintText: 'Enter your name',
-                            prefixIcon: Icon(Icons.person_outline),
-                          ),
-                          textInputAction: TextInputAction.go,
-                          autofocus: true,
-                          onSubmitted: (_) =>
-                              _doJoin(_nameController.text),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Join button
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: () =>
-                                _doJoin(_nameController.text),
-                            child: const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 2),
-                              child: Text(
-                                'Join Conversation',
-                                style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600),
+                    // Join card
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text(
+                              'Join conversation',
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
-                          ),
+                            const SizedBox(height: 16),
+                            TextField(
+                              controller: _nameController,
+                              decoration: const InputDecoration(
+                                hintText: 'Your name',
+                                prefixIcon:
+                                    Icon(Icons.person_outline, size: 20),
+                              ),
+                              textInputAction: TextInputAction.go,
+                              autofocus: true,
+                              onSubmitted: (_) =>
+                                  _doJoin(_nameController.text),
+                            ),
+                            const SizedBox(height: 16),
+                            SizedBox(
+                              height: 50,
+                              child: ElevatedButton(
+                                onPressed: () =>
+                                    _doJoin(_nameController.text),
+                                child: const Text('Join'),
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 24),
+                      ),
+                    ),
 
-                        // Feature list
-                        Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? const Color(0xFF374151)
-                                : const Color(0xFFECFEFF),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Column(
-                            children: [
-                              _featureItem(
-                                theme,
-                                'Invite colleagues and add AI experts to dynamic group conversations',
-                              ),
-                              const SizedBox(height: 10),
-                              _featureItem(
-                                theme,
-                                'Brainstorming sessions with diverse perspectives',
-                              ),
-                              const SizedBox(height: 10),
-                              _featureItem(
-                                theme,
-                                'Expert panels where AI agents debate and collaborate',
-                              ),
-                              const SizedBox(height: 10),
-                              _featureItem(
-                                theme,
-                                'Team problem solving with specialized AI consultants',
-                              ),
-                            ],
-                          ),
-                        ),
+                    const SizedBox(height: 32),
+
+                    // Feature pills
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      alignment: WrapAlignment.center,
+                      children: [
+                        _featurePill(context, Icons.groups_outlined,
+                            'Multi-agent AI'),
+                        _featurePill(context, Icons.bolt_outlined,
+                            'Real-time chat'),
+                        _featurePill(context, Icons.psychology_outlined,
+                            'Multiple models'),
+                        _featurePill(context, Icons.people_outline,
+                            'Collaborative'),
                       ],
                     ),
-                  ),
+                  ],
                 ),
               ),
             ),
@@ -198,23 +178,39 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
     );
   }
 
-  Widget _featureItem(ThemeData theme, String text) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(
-          Icons.check_circle,
-          size: 20,
-          color: theme.colorScheme.primary,
+  Widget _featurePill(BuildContext context, IconData icon, String label) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: isDark
+            ? Colors.white.withValues(alpha: 0.06)
+            : Colors.white.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            text,
-            style: theme.textTheme.bodyMedium,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon,
+              size: 16,
+              color: theme.colorScheme.primary.withValues(alpha: 0.7)),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color:
+                  theme.colorScheme.onSurface.withValues(alpha: 0.6),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

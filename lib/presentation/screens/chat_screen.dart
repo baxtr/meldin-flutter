@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
+import 'package:intl/intl.dart';
 import '../providers/session_provider.dart';
 import '../providers/websocket_provider.dart';
 import '../providers/chat_providers.dart';
@@ -17,6 +18,7 @@ import '../widgets/typing_indicator_widget.dart';
 import '../widgets/connection_status_widget.dart';
 import '../../data/models/websocket_message.dart';
 import '../../data/models/participant.dart';
+import '../../data/models/message.dart';
 import '../../data/services/websocket_service.dart';
 import '../../utils/message_formatter.dart';
 import 'dart:io';
@@ -35,21 +37,49 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _scrollController = ScrollController();
   bool _isNudging = false;
   String? _meetingTopic;
+  bool _showScrollToBottom = false;
+  int _unreadCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     super.dispose();
   }
 
-  void _scrollToBottom() {
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final atBottom = _scrollController.position.maxScrollExtent -
+            _scrollController.offset <
+        100;
+    if (_showScrollToBottom == atBottom) {
+      setState(() {
+        _showScrollToBottom = !atBottom;
+        if (atBottom) _unreadCount = 0;
+      });
+    }
+  }
+
+  void _scrollToBottom({bool animate = true}) {
+    setState(() => _unreadCount = 0);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
+        if (animate) {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        } else {
+          _scrollController
+              .jumpTo(_scrollController.position.maxScrollExtent);
+        }
       }
     });
   }
@@ -116,7 +146,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('Start New Chat?'),
         content: const Text(
-          'This will close the current conversation. Make sure to download or summarize if you want to save it.',
+          'This will leave the current conversation.',
         ),
         actions: [
           TextButton(
@@ -133,6 +163,76 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               context.go('/join/$newId');
             },
             child: const Text('New Chat'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- Message grouping ---
+  bool _shouldShowHeader(List<Message> messages, int index) {
+    if (index == 0) return true;
+    final msg = messages[index];
+    final prev = messages[index - 1];
+    if (msg.isAnnouncement || prev.isAnnouncement) return true;
+    if (msg.senderId != prev.senderId) return true;
+    if (msg.timestamp - prev.timestamp > 120000) return true; // 2 min gap
+    return false;
+  }
+
+  // --- Date separators ---
+  bool _isSameDay(int ts1, int ts2) {
+    final d1 = DateTime.fromMillisecondsSinceEpoch(ts1);
+    final d2 = DateTime.fromMillisecondsSinceEpoch(ts2);
+    return d1.year == d2.year && d1.month == d2.month && d1.day == d2.day;
+  }
+
+  Widget _dateSeparator(BuildContext context, int timestamp) {
+    final theme = Theme.of(context);
+    final date = DateTime.fromMillisecondsSinceEpoch(timestamp);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final messageDay = DateTime(date.year, date.month, date.day);
+    final diff = today.difference(messageDay).inDays;
+
+    String label;
+    if (diff == 0) {
+      label = 'Today';
+    } else if (diff == 1) {
+      label = 'Yesterday';
+    } else if (diff < 7) {
+      label = DateFormat('EEEE').format(date);
+    } else {
+      label = DateFormat('MMM d, y').format(date);
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+      child: Row(
+        children: [
+          Expanded(
+            child: Divider(
+              color:
+                  theme.colorScheme.onSurface.withValues(alpha: 0.1),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.onSurface
+                    .withValues(alpha: 0.35),
+              ),
+            ),
+          ),
+          Expanded(
+            child: Divider(
+              color:
+                  theme.colorScheme.onSurface.withValues(alpha: 0.1),
+            ),
           ),
         ],
       ),
@@ -168,10 +268,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       });
     });
 
-    // Scroll to bottom on new messages
+    // Scroll to bottom on new messages (or increment unread count)
     ref.listen(messagesProvider(widget.conversationId), (prev, next) {
       if (prev != null && next.length > prev.length) {
-        _scrollToBottom();
+        if (_showScrollToBottom) {
+          setState(
+              () => _unreadCount += next.length - prev.length);
+        } else {
+          _scrollToBottom();
+        }
       }
     });
 
@@ -198,27 +303,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     Widget chatArea = Column(
       children: [
-        // Messages
-        Expanded(
-          child: messages.isEmpty
-              ? _buildEmptyState(theme, hasAgents)
-              : ListView.builder(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 8),
-                  itemCount: messages.length + typingParticipants.length,
-                  itemBuilder: (context, index) {
-                    if (index < messages.length) {
-                      return ChatMessageWidget(
-                          message: messages[index]);
-                    }
-                    final tp =
-                        typingParticipants[index - messages.length];
-                    return TypingIndicatorWidget(
-                        participantName: tp.name);
-                  },
-                ),
-        ),
         // Meeting topic banner
         if (_meetingTopic != null)
           Container(
@@ -226,17 +310,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             padding: const EdgeInsets.symmetric(
                 horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: theme.colorScheme.primary.withValues(alpha: 0.08),
+              color: theme.colorScheme.primary.withValues(alpha: 0.06),
               border: Border(
-                top: BorderSide(
+                bottom: BorderSide(
                   color:
-                      theme.colorScheme.primary.withValues(alpha: 0.2),
+                      theme.colorScheme.primary.withValues(alpha: 0.12),
                 ),
               ),
             ),
             child: Row(
               children: [
-                Icon(Icons.topic,
+                Icon(Icons.lightbulb_outline,
                     size: 16, color: theme.colorScheme.primary),
                 const SizedBox(width: 8),
                 Expanded(
@@ -244,6 +328,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     _meetingTopic!,
                     style: TextStyle(
                       fontSize: 13,
+                      fontWeight: FontWeight.w500,
                       color: theme.colorScheme.primary,
                     ),
                     maxLines: 1,
@@ -253,6 +338,113 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               ],
             ),
           ),
+        // Messages
+        Expanded(
+          child: Stack(
+            children: [
+              messages.isEmpty
+                  ? _buildEmptyState(theme, hasAgents)
+                  : ListView.builder(
+                      controller: _scrollController,
+                      padding:
+                          const EdgeInsets.only(top: 8, bottom: 8),
+                      itemCount: messages.length +
+                          typingParticipants.length,
+                      itemBuilder: (context, index) {
+                        if (index < messages.length) {
+                          final msg = messages[index];
+                          final showDate = index == 0 ||
+                              !_isSameDay(
+                                messages[index - 1].timestamp,
+                                msg.timestamp,
+                              );
+                          final showHeader =
+                              _shouldShowHeader(messages, index);
+
+                          return Column(
+                            children: [
+                              if (showDate)
+                                _dateSeparator(
+                                    context, msg.timestamp),
+                              ChatMessageWidget(
+                                message: msg,
+                                isOwnMessage:
+                                    msg.senderId == session.userId,
+                                showHeader: showHeader,
+                              ),
+                            ],
+                          );
+                        }
+                        final tp = typingParticipants[
+                            index - messages.length];
+                        return TypingIndicatorWidget(
+                            participantName: tp.name);
+                      },
+                    ),
+              // Scroll to bottom FAB with unread badge
+              if (_showScrollToBottom)
+                Positioned(
+                  bottom: 12,
+                  right: 12,
+                  child: GestureDetector(
+                    onTap: () => _scrollToBottom(),
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? const Color(0xFF252830)
+                                : Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black
+                                    .withValues(alpha: 0.15),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            Icons.keyboard_arrow_down,
+                            color: theme.colorScheme.onSurface
+                                .withValues(alpha: 0.6),
+                          ),
+                        ),
+                        if (_unreadCount > 0)
+                          Positioned(
+                            top: -6,
+                            right: -6,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.primary,
+                                borderRadius:
+                                    BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                _unreadCount > 99
+                                    ? '99+'
+                                    : '$_unreadCount',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
         // Input
         ChatInputWidget(
           wsService: wsService,
@@ -266,15 +458,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        titleSpacing: 12,
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Image.asset('assets/meldin-logo.png', height: 28),
+            Image.asset('assets/meldin-logo.png', height: 26),
             const SizedBox(width: 8),
             Text(
               'Meldin',
               style: TextStyle(
-                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
                 color: theme.colorScheme.primary,
               ),
             ),
@@ -286,13 +480,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           if (!isWide)
             Builder(
               builder: (ctx) => IconButton(
-                icon: const Icon(Icons.menu),
+                icon: const Icon(Icons.menu_rounded),
                 onPressed: () => Scaffold.of(ctx).openEndDrawer(),
               ),
             ),
         ],
       ),
-      endDrawer: isWide ? null : Drawer(width: 300, child: sidebar),
+      endDrawer: isWide
+          ? null
+          : Drawer(
+              width: 300,
+              child: SafeArea(child: sidebar),
+            ),
       body: isWide
           ? Row(
               children: [
@@ -307,34 +506,35 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Widget _buildEmptyState(ThemeData theme, bool hasAgents) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(40),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.chat_bubble_outline,
-              size: 64,
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.2),
-            ),
-            const SizedBox(height: 16),
+            Image.asset('assets/meldin-logo.png', height: 80),
+            const SizedBox(height: 20),
             Text(
-              'No messages yet',
-              style: theme.textTheme.titleMedium?.copyWith(
-                color:
-                    theme.colorScheme.onSurface.withValues(alpha: 0.5),
+              hasAgents
+                  ? 'Start the conversation'
+                  : 'Set up your conversation',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.onSurface
+                    .withValues(alpha: 0.7),
               ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              hasAgents
+                  ? 'Send a message to begin chatting with the AI agents'
+                  : 'Add AI agents or invite people to get started',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurface
+                    .withValues(alpha: 0.45),
+              ),
+              textAlign: TextAlign.center,
             ),
             if (!hasAgents) ...[
-              const SizedBox(height: 8),
-              Text(
-                'Get started by adding AI agents or inviting others',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurface
-                      .withValues(alpha: 0.4),
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 28),
               Wrap(
                 spacing: 12,
                 runSpacing: 12,
@@ -342,16 +542,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 children: [
                   ElevatedButton.icon(
                     onPressed: () => _showAgentManager(),
-                    icon: const Icon(Icons.smart_toy),
+                    icon:
+                        const Icon(Icons.smart_toy_outlined, size: 18),
                     label: const Text('Add AI Agents'),
                   ),
-                  ElevatedButton.icon(
+                  OutlinedButton.icon(
                     onPressed: () => _showInviteDialog(),
-                    icon: const Icon(Icons.share),
-                    label: const Text('Invite People'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF22C55E),
-                    ),
+                    icon: const Icon(Icons.person_add_outlined,
+                        size: 18),
+                    label: const Text('Invite'),
                   ),
                 ],
               ),
@@ -367,9 +566,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (_) => AgentManagerDialog(
         onAddAgent: _handleAddAgent,
         onSetTopic: (topic) => setState(() => _meetingTopic = topic),

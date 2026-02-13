@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
 import '../../data/models/message.dart';
 import '../../data/models/websocket_message.dart';
@@ -27,6 +28,16 @@ class ChatInputWidget extends StatefulWidget {
 class _ChatInputWidgetState extends State<ChatInputWidget> {
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
+  bool _hasText = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(() {
+      final has = _controller.text.trim().isNotEmpty;
+      if (has != _hasText) setState(() => _hasText = has);
+    });
+  }
 
   void _send() {
     final text = _controller.text.trim();
@@ -42,6 +53,7 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
       conversationId: widget.conversationId,
     );
 
+    HapticFeedback.lightImpact();
     widget.wsService.send(WsMessageChat(message));
     _controller.clear();
     _focusNode.unfocus();
@@ -57,60 +69,86 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final canSend = widget.isConnected && _hasText;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       decoration: BoxDecoration(
-        color: theme.appBarTheme.backgroundColor,
-        border: Border(
-          top: BorderSide(
-            color: theme.dividerColor.withValues(alpha: 0.3),
+        color: isDark ? const Color(0xFF1A1D27) : Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.06),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
           ),
-        ),
+        ],
       ),
       child: SafeArea(
         top: false,
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Expanded(
-              child: TextField(
-                controller: _controller,
-                focusNode: _focusNode,
-                enabled: widget.isConnected,
-                decoration: InputDecoration(
-                  hintText: 'Type your message...',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
-                    borderSide: BorderSide(
-                      color: theme.dividerColor.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
-                    borderSide: BorderSide(
-                      color: theme.colorScheme.primary,
-                      width: 2,
-                    ),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 18, vertical: 12),
-                  isDense: true,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? const Color(0xFF252830)
+                      : const Color(0xFFF3F4F6),
+                  borderRadius: BorderRadius.circular(24),
                 ),
-                textInputAction: TextInputAction.send,
-                onSubmitted: (_) => _send(),
-                maxLines: null,
-                minLines: 1,
+                child: TextField(
+                  controller: _controller,
+                  focusNode: _focusNode,
+                  enabled: widget.isConnected,
+                  decoration: InputDecoration(
+                    hintText: widget.isConnected
+                        ? 'Message...'
+                        : 'Connecting...',
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 12),
+                    isDense: true,
+                  ),
+                  textInputAction: TextInputAction.send,
+                  onSubmitted: (_) => _send(),
+                  maxLines: 5,
+                  minLines: 1,
+                  style: const TextStyle(fontSize: 15),
+                ),
               ),
             ),
             const SizedBox(width: 8),
-            IconButton.filled(
-              onPressed: widget.isConnected ? _send : null,
-              icon: const Icon(Icons.send_rounded),
-              style: IconButton.styleFrom(
-                padding: const EdgeInsets.all(12),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeInOut,
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: canSend
+                    ? theme.colorScheme.primary
+                    : (isDark
+                        ? const Color(0xFF252830)
+                        : const Color(0xFFE5E7EB)),
+                shape: BoxShape.circle,
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: canSend ? _send : null,
+                  borderRadius: BorderRadius.circular(22),
+                  child: Icon(
+                    Icons.arrow_upward_rounded,
+                    color: canSend
+                        ? Colors.white
+                        : (isDark
+                            ? const Color(0xFF6B7280)
+                            : const Color(0xFF9CA3AF)),
+                    size: 22,
+                  ),
+                ),
               ),
             ),
           ],
